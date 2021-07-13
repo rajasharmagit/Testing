@@ -1,0 +1,168 @@
+public class AnalysisController {
+    
+    @AuraEnabled
+    public static List<PresicaBankDetail__c> initMethod(String recordId){
+        List<PresicaBankDetail__c> presicaBankDetaiList = [SELECT Id, Name, cloudfinezza__Bank__c, cloudfinezza__AccountNumber__c, cloudfinezza__RelatedSourceRecordID__c
+                                                        FROM cloudfinezza__PresicaBankDetail__c
+                                                        WHERE cloudfinezza__RelatedSourceRecordID__c =: recordId 
+                                                        OR Id =: recordId];
+        return presicaBankDetaiList;
+    }
+
+    @AuraEnabled
+    public static wrapperClass analysisMethod(String recordId){
+        Map<String, Object> analysedResponeMap = New Map<String, Object>();
+        Map<String, Object> bsa_final_jsonMap =   New Map<String, Object>();
+        List<Object> bank_statementsList = New List<Object>();
+        Map<String, Object> bank_statementsMap = New Map<String, Object>();
+             
+         Map<String, Object> quarterlyTrendGraph = New Map<String, Object>();
+        List<Object> quarterlyEmiList = New List<Object>();
+        List<Object> quarterlyAbbList = New List<Object>();
+       
+        Map<String, Object> monthlyTrendGraph = New Map<String, Object>();
+        List<Object> monthlyEmiList = New List<Object>();
+        List<Object> monthlyAbbList = New List<Object>();
+        
+        
+        // create a wrapper class object and set the wrapper class @AuraEnabled properties and return it to the lightning component.
+        wrapperClass returnwrapperClass = new  wrapperClass ();        
+        
+        List<PresicaBankDetail__c> addBankDetailsRec = [SELECT Id, EntityId__c FROM PresicaBankDetail__c WHERE Id =: recordId];
+       // system.debug(recordId+'addBankDetailsRec'+addBankDetailsRec);
+        String sessionId  =  GetSessionId.getSessionId();
+        HttpRequest request = new HttpRequest();
+        request.setEndpoint('https://multitenancy.dev.finezza.in/api/application/fetchAnalysis/'+addBankDetailsRec[0].EntityId__c+'?sessionid='+sessionId);
+        request.setMethod('GET');
+        request.setTimeout(120000);
+        request.setHeader('sessionId', sessionId);
+        Http http = new Http();
+        HTTPResponse response = http.send(request);
+        system.debug('response '+response.getBody());
+
+        if(response.getStatusCode() == 200){
+            
+            analysedResponeMap  = (Map<String, Object>) JSON.deserializeUntyped(response.getBody());
+            bsa_final_jsonMap   = (Map<String, Object>)analysedResponeMap.get('bsa_final_json');
+            bank_statementsList = (List<Object>)bsa_final_jsonMap.get('bank_statements');
+            bank_statementsMap  = (Map<String, Object>)bank_statementsList[0];
+            returnwrapperClass.bankStatementsMap = (Map<String, Object>)bank_statementsList[0];
+          
+            //this loops are for counting the record to be display
+            // this is for MONTHLY SUMMARY
+            Integer summaryCount = 0;
+            for(Object thisLoopVar : (List<Object>)bank_statementsMap.get('summary')){
+                summaryCount++;
+            }
+            returnwrapperClass.CountMap.put('summary', summaryCount);  
+            // this is for CUMULATIVE QUARTERLY SUMMARY
+            Integer summaryTrendCount = 0;
+            for(Object thisLoopVar : (List<Object>)bank_statementsMap.get('summary_trend')){
+                summaryTrendCount++;
+            }
+            returnwrapperClass.CountMap.put('summary_trend', summaryTrendCount);  
+            // this is for PATTERN
+            Integer patternsCount = 0;
+            for(Object thisLoopVar : (List<Object>)bank_statementsMap.get('patterns')){
+                patternsCount++;
+            }
+            returnwrapperClass.CountMap.put('patterns', patternsCount);  
+            // this is for LOAN REPAYMENTS
+            Integer loan_repayments = 0;
+            for(Object thisLoopVar : (List<Object>)bank_statementsMap.get('loan_repayments')){
+                loan_repayments++;
+            }
+            returnwrapperClass.CountMap.put('loan_repayments', loan_repayments); 
+            // this is for COUNTERPARTY LEADERBOARD
+            Integer leaderboard;
+            Integer credit_leaderboard = 0;
+            for(Object thisLoopVar : (List<Object>)bank_statementsMap.get('credit_leaderboard')){
+                credit_leaderboard++;
+            }
+            Integer debit_leaderboard = 0;
+            for(Object thisLoopVar : (List<Object>)bank_statementsMap.get('debit_leaderboard')){
+                debit_leaderboard++;
+            }
+            if(credit_leaderboard <= debit_leaderboard){
+                leaderboard = debit_leaderboard;
+            }else{
+                leaderboard = credit_leaderboard;
+            }
+            returnwrapperClass.CountMap.put('leaderboard', leaderboard); 
+            // this is for CHEQUE RETURN INWARDS
+            Integer cheque_return_inward = 0;
+            for(Object thisLoopVar : (List<Object>)bank_statementsMap.get('cheque_return_inward')){
+                cheque_return_inward++;
+            }
+            returnwrapperClass.CountMap.put('cheque_return_inward', cheque_return_inward); 
+            // this is for HEQUE RETURN OUTWARDS
+            Integer cheque_return_outwards = 0;
+            for(Object thisLoopVar : (List<Object>)bank_statementsMap.get('cheque_return_outwards')){
+                cheque_return_outwards++;
+            }
+            returnwrapperClass.CountMap.put('cheque_return_outwards', cheque_return_outwards); 
+            // this is for CHARGES / PROBABLE RETURNS
+            Integer charges_or_probable_returns = 0;
+            for(Object thisLoopVar : (List<Object>)bank_statementsMap.get('charges_or_probable_returns')){
+                charges_or_probable_returns++;
+            }
+            returnwrapperClass.CountMap.put('charges_or_probable_returns',charges_or_probable_returns); 
+            // this is for  TOP CREDIT TRANSACTION
+            Integer top_credit_transactions = 0;
+            for(Object thisLoopVar : (List<Object>)bank_statementsMap.get('top_credit_transactions')){
+                top_credit_transactions++;
+            }
+            returnwrapperClass.CountMap.put('top_credit_transactions', top_credit_transactions); 
+            // this is for  TOP DEBIT TRANSACTION
+            Integer top_debit_transactions = 0;
+            for(Object thisLoopVar : (List<Object>)bank_statementsMap.get('top_debit_transactions')){
+                top_debit_transactions++;
+            }
+            returnwrapperClass.CountMap.put('top_debit_transactions', top_debit_transactions); 
+             
+            //this is for the quarterly graph
+            quarterlyTrendGraph = (Map<String, Object>)bank_statementsMap.get('quarterly_trend_graph');
+            quarterlyEmiList    = (List<Object>)quarterlyTrendGraph.get('emi');
+            quarterlyAbbList    = (List<Object>)quarterlyTrendGraph.get('abb');
+            for(Object thisLoopVar : quarterlyEmiList){
+                Map<String, Object> emiMapValues = (Map<String, Object>)thisLoopVar; 
+                returnwrapperClass.quarterlyEmiXList.add((String)emiMapValues.get('x'));
+                returnwrapperClass.quarterlyEmiYList.add((Decimal)emiMapValues.get('y'));
+            }   
+            for(Object thisLoopVar : quarterlyAbbList){
+                Map<String, Object> abbMapValues = (Map<String, Object>)thisLoopVar;   
+                returnwrapperClass.quarterlyAbbYList.add((Decimal)abbMapValues.get('y'));
+            }   
+            
+            //this is for the monthly graph
+            monthlyTrendGraph = (Map<String, Object>)bank_statementsMap.get('monthly_trend_graph');
+            monthlyEmiList    = (List<Object>)monthlyTrendGraph.get('emi');
+            monthlyAbbList    = (List<Object>)monthlyTrendGraph.get('abb');
+            for(Object thisLoopVar : monthlyEmiList){
+                Map<String, Object> emiMapValues = (Map<String, Object>)thisLoopVar;   
+                returnwrapperClass.monthlyXList.add((String)emiMapValues.get('x'));
+                returnwrapperClass.monthlyEmiYList.add((Decimal)emiMapValues.get('y'));
+            }   
+            for(Object thisLoopVar : monthlyAbbList){
+                Map<String, Object> abbMapValues = (Map<String, Object>)thisLoopVar;   
+                returnwrapperClass.monthlyAbbYList.add((Decimal)abbMapValues.get('y'));
+            }   
+         }
+
+      return returnwrapperClass;    
+    }
+    
+    // wrapper or Inner class with @AuraEnabled {get;set;} properties*    
+    public class wrapperClass{
+        @AuraEnabled public Map<String, Object> bankStatementsMap = New Map<String, Object>();
+        @AuraEnabled public list<String> quarterlyEmiXList = new list<String>();
+        @AuraEnabled public list<Decimal> quarterlyEmiYList = new List<Decimal>();
+        @AuraEnabled public list<Decimal> quarterlyAbbYList = new List<Decimal>();
+        
+        @AuraEnabled public list<String> monthlyXList = new list<String>();
+        @AuraEnabled public list<Decimal> monthlyEmiYList = new List<Decimal>();
+        @AuraEnabled public list<Decimal> monthlyAbbYList = new List<Decimal>();
+        
+        @AuraEnabled public Map<String, Integer> CountMap = New Map<String, Integer>();
+    }
+}

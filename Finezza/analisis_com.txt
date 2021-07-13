@@ -1,0 +1,883 @@
+<aura:component implements="flexipage:availableForRecordHome,lightning:isUrlAddressable,lightning:availableForFlowScreens,force:lightningQuickActionWithoutHeader,force:hasRecordId,lightning:actionOverride,force:appHostable" 
+                controller ="AnalysisController" access="global">
+    
+    <aura:attribute name="Spinner" type="boolean" default="false"/>
+    <aura:attribute name="analysisView" type="boolean" default="true"/>
+    <aura:attribute name="transactionalView" type="boolean" default="false"/>
+    <aura:attribute name="preports" type="boolean" default="false"/>
+    <aura:attribute name="alert" type="boolean" default="false"/>
+    <aura:attribute name="saveChengess" type="boolean" default="false"/>
+    
+    <aura:attribute name="showMonthlySummary" type="boolean" default="true"/> 
+    <aura:attribute name="showCumulativeQuarterlySummary" type="boolean" default="false"/> 
+    <aura:attribute name="showPattern" type="boolean" default="false"/> 
+    <aura:attribute name="showLoanRepayments" type="boolean" default="false"/> 
+    <aura:attribute name="showCounterpartyLeaderboard" type="boolean" default="false"/> 
+    <aura:attribute name="showChequeReturnInwards" type="boolean" default="false"/> 
+    <aura:attribute name="showChequeReturnOutwards" type="boolean" default="false"/> 
+    <aura:attribute name="showChargesProbableReturns" type="boolean" default="false"/> 
+    <aura:attribute name="showTopCreditTransaction" type="boolean" default="false"/> 
+    <aura:attribute name="showTopDebitTransaction" type="boolean" default="false"/> 
+    <aura:attribute name="bankStatementsMap" type="Map[]" />
+    <aura:attribute name="CountMap" type="Map[]" />
+    <aura:attribute name="presicaBankDetaiList" type="List[]" />
+    <aura:attribute name="showAnalysis" type="boolean" default="false"/> 
+    <aura:attribute name="BankAccountId" type="String"/>
+    <aura:attribute name="graphMap" type="String" />
+    
+    <aura:attribute name="quarterlyEmiXList" type="List[]"/>
+    <aura:attribute name="quarterlyEmiYList" type="List"/>
+    <aura:attribute name="quarterlyAbbYList" type="List[]"/>
+    <aura:attribute name="monthlyXList" type="List[]"/>
+    <aura:attribute name="monthlyEmiYList" type="List[]"/>
+    <aura:attribute name="monthlyAbbYList" type="List[]"/>
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}"/>
+    
+    <aura:attribute name="isSelectAll" type="boolean" default="false"/>
+    <!--loading spinner start... style=Brand Medium (blue dots)-->
+    <aura:if isTrue="{!v.Spinner}">
+        <div class="demo-only demo--inverse">
+            <div class="slds-spinner--brand  slds-spinner slds-spinner--large" role="alert">
+                <span class="slds-assistive-text">Loading</span>
+                <div class="slds-spinner__dot-a"></div>
+                <div class="slds-spinner__dot-b"></div>
+                <p style="transform: translate(-32%, -50%) rotate(-90deg);width: 350px;text-align: center;"><b>Please wait while loading</b></p>
+                
+            </div>
+        </div>
+    </aura:if>
+    <!-- Loading spinner end--> 
+    
+    
+    <div class="slds-m-around_xx-large slds-m-left_large" >
+        <div class="slds-grid slds-wrap">
+            <div class="slds-col slds-size_3-of-12">
+                <span>
+                    <lightning:select aura:id="listOfBankAccount" value="" name="industryPicklist" label="LIST OF BANK ACCOUNT" onchange="{!c.getAnalysis}">
+                        <option value="">--Select Bank Account--</option>
+                        <aura:iteration items="{!v.presicaBankDetaiList}" var="presicaBankDetai" >
+                            <option value="{!presicaBankDetai.Id}"> {!presicaBankDetai.cloudfinezza__AccountNumber__c}&nbsp; {!presicaBankDetai.cloudfinezza__Bank__c}</option>
+                        </aura:iteration>
+                    </lightning:select>
+                    <!--  <lightning:select name="selectItem" label="LIST OF BANK ACCOUNT" onchange="{!c.doSomething}">
+                            <option value="1">{!statments.account_no}&nbsp;{!statments.bank_name}</option>
+                        </lightning:select> -->
+                </span>
+            </div>
+            <aura:if isTrue="{!v.showAnalysis}">
+                <aura:iteration items="{!v.bankStatementsMap}" var="statments">
+                    <div class="slds-col slds-size_1-of-12"> </div>
+                    <div class="slds-col slds-size_3-of-12">
+                        <span><b>Account Holder Name : {!statments.name}</b></span>
+                    </div>
+                    <div class="slds-col slds-size_3-of-12">
+                        <span><b>Account Status :</b> Processed </span>
+                    </div>
+                    <div class="slds-col slds-size_2-of-12">
+                        <span><b>File Status</b> Done : 1 </span>
+                    </div>
+                </aura:iteration>
+            </aura:if>
+        </div>
+        <br/>
+        <aura:if isTrue="{!v.showAnalysis}">
+            <aura:iteration items="{!v.bankStatementsMap}" var="statments">
+                <aura:iteration items="{!v.CountMap}" var="count">
+                    
+                    <div><b>Statement period </b>=> From :{!statments.statement_period} </div>
+                    <br/>
+                    <div>
+                        <lightning:button variant="brand" label="ANALYSIS VIEW" onclick="{!c.analysisViewBtn }" disabled="{!v.analysisView}" class="slds-m-right_x-large slds-p-horizontal_x-large slds-p-vertical_x-small slds-text-heading_small" />
+                        <lightning:button variant="brand" label="TRANSACTIONAL VIEW" onclick="{!c.transactionalViewBtn }" disabled="{!v.transactionalView}" class="slds-m-right_x-large slds-p-horizontal_x-large slds-p-vertical_x-small slds-text-heading_small"/>
+                        <lightning:button variant="brand" label="REPORTS" onclick="{!c.preportsBtn }" disabled="{!v.preports}" class="slds-m-right_x-large slds-p-horizontal_x-large slds-p-vertical_x-small slds-text-heading_small"/>
+                        <lightning:button variant="destructive" label="ALERT" onclick="{!c.alertBtn }" disabled="{!v.alert}" class="slds-m-right_x-large slds-p-horizontal_x-large slds-p-vertical_x-small slds-text-heading_small"/>
+                        <lightning:button variant="brand" label="SAVE CHANGES" onclick="{!c.saveChengessBtn }" disabled="{!v.saveChengess}" class="slds-m-right_x-large slds-p-horizontal_x-large slds-p-vertical_x-small slds-text-heading_small"/>
+                    </div>
+                    <br/>
+                    <aura:if isTrue="{!v.analysisView}">
+                        <div style="box-shadow: 5px 5px 10px #888888;">
+                            <div class="slds-border_bottom  slds-p-around_x-small" onclick="{!c.MonthlySummary}">
+                                <b><lightning:icon iconName="utility:monthlyview" size="small" class="slds-m-horizontal_small" alternativeText="monthlyview" title="Connected" />
+                                    MONTHLY SUMMARY [{!count.summary}]</b> 
+                            </div>
+                            <aura:if isTrue="{!v.showMonthlySummary}">
+                                <div class="slds-m-around_x-large">
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered ">
+                                        <thead>
+                                            <tr class="slds-line-height_reset">
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="MONTH">MONTH</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="I/F">I/F</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="I/F COUNT">I/F <br/>COUNT</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="O/F">O/F</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="O/F COUNT">O/F <br/> COUNT</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="DIFF.(I/F-O/F)">DIFF.<br/>(I/F-O/F)</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="AVG.DAILY BAL.">AVG.DAILY <br/>BAL.</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="BIZ.I/F">BIZ.I/F</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="BIZ.O/F">BIZ.O/F</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="EMI">EMI</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="EMI COUNT">EMI <br/>COUNT</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="CASH I/F">CASH I/F</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="CASH I/F COUNT">CASH I/F<br/> COUNT</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="CASH O/F">CASH O/F</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="CASH O/F COUNT">CASH O/F COUNT</div>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <aura:iteration items="{!statments.summary}" var="sum">
+                                                <tr class="slds-hint-parent">
+                                                    <td>{!sum.date}</td>
+                                                    <td>{!sum.total_inflow} </td>
+                                                    <td>{!sum.inflow_count}</td>
+                                                    <td>{!sum.total_outflow}</td>
+                                                    <td>{!sum.outflow_count}</td>  
+                                                    <td>{!sum.total_delta}</td>  
+                                                    <td>{!sum.daily_average_balance}</td>
+                                                    <td>{!sum.total_biz_inflow}</td>
+                                                    <td>{!sum.total_biz_outflow}</td>
+                                                    <td>{!sum.total_emi}</td>
+                                                    <td>{!sum.emi_count}</td> 
+                                                    <td>{!sum.total_cash_inflow}</td>
+                                                    <td>{!sum.cash_inflow_count}</td>
+                                                    <td>{!sum.total_cash_outflow}</td>
+                                                    <td>{!sum.cash_outflow_count}</td>
+                                                </tr>
+                                            </aura:iteration>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </aura:if>
+                            
+                            <div class="slds-border_bottom slds-border_top slds-p-around_x-small" onclick="{!c.CumulativeQuarterlySummary}">
+                                <b><lightning:icon iconName="utility:trending" size="small" class="slds-m-horizontal_small" alternativeText="monthlyview" title="Connected" />
+                                    CUMULATIVE QUARTERLY SUMMARY [{!count.summary_trend}]</b>
+                            </div>
+                            <aura:if isTrue="{!v.showCumulativeQuarterlySummary}">
+                                <div class="slds-m-around_x-large">
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered ">
+                                        <thead>
+                                            <tr class="slds-line-height_reset">
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="DURATION">DURATION</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="AVERAGE DAILY BALANCE">AVERAGE DAILY BALANCE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="TOTAL INFLOW">TOTAL<br/> INFLOW</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="TOTAL OUTFLOW">TOTAL<br/> OUTFLOW</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="AVERAGE BUSINESS INFLOW">AVERAGE<br/> BUSINESS<br/> INFLOW</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="AVERAGE BUSINESS OUTFLOW">AVERAGE <br/>BUSINESS<br/> OUTFLOW</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="AVERAGE BUSINESS INFLOW/AVERAGE DAILY BALANCE">AVERAGE BUSINESS<br/> INFLOW/AVERAGE <br/>DAILY BALANCE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="AVERAGE BUSINESS OUTFLOW/AVERAGE DAILY BALANCE">AVERAGE BUSINESS<br/> OUTFLOW/AVERAGE<br/> DAILY BALANCE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="TREND">TREND</div>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <aura:iteration items="{!statments.summary_trend}" var="sumtrend">
+                                                <tr class="slds-hint-parent">
+                                                    <td>{!sumtrend.duration}</td>
+                                                    <td>{!sumtrend.average_daily_balance}</td>
+                                                    <td>{!sumtrend.total_inflow}</td>
+                                                    <td>{!sumtrend.total_outflow}</td>
+                                                    <td>{!sumtrend.avg_biz_inflow}</td>
+                                                    <td>{!sumtrend.avg_biz_outflow}</td>
+                                                    <td>{!sumtrend.avg_biz_inflow_adb}</td>
+                                                    <td>{!sumtrend.avg_biz_outflow_adb}</td>
+                                                    <td>{!sumtrend.trend}</td>
+                                                </tr>
+                                            </aura:iteration>
+                                        </tbody>
+                                    </table>
+                                    <br/>
+                                    <div class="slds-grid">
+                                        <div class="slds-col">
+                                            <h2>&nbsp;&nbsp;<b>Overall History</b></h2>
+                                            <ltng:require scripts="{!$Resource.Chart_library}" afterScriptsLoaded="{!c.overallChart}"/>
+                                            <div class="slds-box slds-box--x-small slds-m-around--x-small">
+                                                <canvas aura:id="barchart"></canvas>
+                                            </div>
+                                        </div>                               
+                                        <div class="slds-col">
+                                            <h2>&nbsp;&nbsp;<b>Quarterly Trend</b></h2>
+                                            <ltng:require scripts="{!$Resource.Chart_library}" afterScriptsLoaded="{!c.quarterlyChart}"/>
+                                            <div class="slds-box slds-box--x-small slds-m-around--x-small">
+                                                <canvas aura:id="linechart"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </aura:if>
+                            
+                            <div class="slds-border_bottom slds-border_top slds-p-around_x-small" onclick="{!c.Pattern}">
+                                <b><lightning:icon iconName="utility:inspector_panel" size="small" class="slds-m-horizontal_small" alternativeText="monthlyview" title="Connected" />
+                                    PATTERN [{!count.patterns}]
+                                </b>
+                            </div>
+                            <aura:if isTrue="{!v.showPattern}">
+                                <div class="slds-m-around_x-large">
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered ">
+                                        <thead>
+                                            <tr class="slds-line-height_reset">
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="START DATE">START DATE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="END DATE">END DATE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="PARTICULARS">PARTICULARS</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="COUNTER PARTY">COUNTER PARTY</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="AMOUNT">AMOUNT</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="FREQUENCY">FREQUENCY</div>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <aura:iteration items="{!statments.patterns}" var="pattern">
+                                                <tr class="slds-hint-parent">
+                                                    <td>{!pattern.date}</td>
+                                                    <td>{!pattern.end_date}</td>
+                                                    <td>{!pattern.particular}</td>
+                                                    <td>{!pattern.counterparty}</td>
+                                                    <td>{!pattern.amount}</td>
+                                                    <td>{!pattern.frequency}</td>
+                                                </tr>
+                                            </aura:iteration>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </aura:if>
+                            
+                            <div class="slds-border_bottom slds-border_top slds-p-around_x-small" onclick="{!c.LoanRepayments}">
+                                <b><lightning:icon iconName="utility:inspector_panel" size="small" class="slds-m-horizontal_small" alternativeText="monthlyview" title="Connected" />
+                                    LOAN REPAYMENTS [{!count.loan_repayments}]<!-- -->
+                                </b>
+                            </div>
+                            <aura:if isTrue="{!v.showLoanRepayments}">
+                                <div class="slds-m-around_x-large">
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered ">
+                                        <thead>
+                                            <tr class="slds-line-height_reset">
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="START DATE">START DATE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="END DATE">END DATE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="PARTICULARS">PARTICULARS</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="COUNTER PARTY">COUNTER PARTY</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="AMOUNT">AMOUNT</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="FREQUENCY">FREQUENCY</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="LOAN TYPE">LOAN TYPE</div>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <aura:iteration items="{!statments.loan_repayments}" var="loanRepayments">
+                                                <tr class="slds-hint-parent">
+                                                    <td>{!loanRepayments.date}</td>
+                                                    <td>{!loanRepayments.end_date}</td>
+                                                    <td>{!loanRepayments.particulars}</td>
+                                                    <td>{!loanRepayments.counter_party}</td>
+                                                    <td>{!loanRepayments.amount}</td>
+                                                    <td>{!loanRepayments.frequency}</td>
+                                                    <td>{!loanRepayments.loan_type}</td>
+                                                </tr>
+                                            </aura:iteration>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </aura:if>
+                            
+                            <div class="slds-border_bottom slds-border_top slds-p-around_x-small" onclick="{!c.CounterpartyLeaderboard}">
+                                <b><lightning:icon iconName="utility:insert_tag_field" size="small" class="slds-m-horizontal_small" alternativeText="monthlyview" title="Connected" />
+                                    COUNTERPARTY LEADERBOARD [{!count.leaderboard}]</b><!-- -->
+                            </div>
+                            <aura:if isTrue="{!v.showCounterpartyLeaderboard}">
+                                <div class="slds-m-around_x-large">
+                                    <div class="slds-grid slds-wrap">
+                                        <div class="slds-col slds-size_6-of-12 slds-p-right_x-small">
+                                            <b>&nbsp;CREDIT LEADER BOARD</b>
+                                            <table class="slds-table slds-table_cell-buffer slds-table_bordered ">
+                                                <thead>
+                                                    <tr class="slds-line-height_reset">
+                                                        <th></th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="COUNTER PARTY">COUNTER PARTY</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="AMOUNT">AMOUNT</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="NUMBER OF TRANSACTIONS">NUMBER OF<br/> TRANSACTIONS</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="% OF TOTAL">% OF TOTAL</div>
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <aura:iteration items="{!statments.credit_leaderboard}" var="creditLeaderboard">
+                                                        <tr class="slds-hint-parent">
+                                                            <td>
+                                                                <label class="slds-checkbox">
+                                                                    <ui:inputCheckbox aura:id="checkContact" value="" text=""/>
+                                                                    <span class="slds-checkbox--faux" />
+                                                                    <span class="slds-form-element__label"></span>
+                                                                </label>
+                                                            </td>
+                                                            <td class="truncate" text="justify">{!creditLeaderboard.counterparty}</td>
+                                                            <td>{!creditLeaderboard.amount}</td>
+                                                            <td>{!creditLeaderboard.number_of_transactions}</td>
+                                                            <td>{!creditLeaderboard.pct_of_total}</td>
+                                                        </tr>
+                                                    </aura:iteration>
+                                                </tbody>
+                                            </table>
+                                        </div>                  
+                                        <div class="slds-col slds-size_6-of-12 ">
+                                            <b>&nbsp;DEBIT LEADER BOARD</b>
+                                            <table class="slds-table slds-table_cell-buffer slds-table_bordered ">
+                                                <thead>
+                                                    <tr class="slds-line-height_reset">
+                                                        <th></th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="COUNTER PARTY">COUNTER PARTY</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="AMOUNT">AMOUNT</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="NUMBER OF TRANSACTIONS">NUMBER OF<br/> TRANSACTIONS</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="% OF TOTAL">% OF TOTAL</div>
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <aura:iteration items="{!statments.debit_leaderboard}" var="debitLeaderboard">
+                                                        <tr class="slds-hint-parent">
+                                                            <td scope="row" class="slds-text-align_right" style="width:3.25rem;">
+                                                                <div class="slds-form-element">
+                                                                    <div class="slds-form-element__control">
+                                                                        <label class="slds-checkbox">
+                                                                            <ui:inputCheckbox aura:id="checkContact" value="" text=""/>
+                                                                            <span class="slds-checkbox--faux" />
+                                                                            <span class="slds-form-element__label"></span>
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td class="truncate" text="justify">{!debitLeaderboard.counterparty}</td>
+                                                            <td>{!debitLeaderboard.amount}</td>
+                                                            <td>{!debitLeaderboard.number_of_transactions}</td>
+                                                            <td>{!debitLeaderboard.pct_of_total}</td>
+                                                        </tr>
+                                                    </aura:iteration>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </aura:if>
+                            
+                            <div class="slds-border_bottom slds-border_top slds-p-around_x-small" onclick="{!c.ChequeReturnInwards}">
+                                <b><lightning:icon iconName="utility:back" size="small" class="slds-m-horizontal_small" alternativeText="monthlyview" title="Connected" />
+                                    CHEQUE RETURN INWARDS [{!count.cheque_return_inward}]</b><!-- -->
+                            </div>
+                            <aura:if isTrue="{!v.showChequeReturnInwards}">
+                                <div class="slds-m-around_x-large">
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered ">
+                                        <thead>
+                                            <tr class="slds-line-height_reset">
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="DATE">DATE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="HONOURED DATE">HONOURED DATE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="TYPE">TYPE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="AMOUNT">AMOUNT</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="BALANCE">BALANCE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="PARTICULAR">PARTICULAR</div>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <aura:iteration items="{!statments.cheque_return_inward}" var="chequeReturnInward">
+                                                <tr class="slds-hint-parent">
+                                                    <td>{!chequeReturnInward.date}</td>
+                                                    <td>{!chequeReturnInward.honoured_date}</td>
+                                                    <td>{!chequeReturnInward.type}</td>
+                                                    <td>{!chequeReturnInward.amount}</td>
+                                                    <td>{!chequeReturnInward.balance}</td>
+                                                    <td>{!chequeReturnInward.particular}</td>
+                                                </tr>
+                                            </aura:iteration>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </aura:if>
+                            
+                            <div class="slds-border_bottom slds-border_top slds-p-around_x-small" onclick="{!c.ChequeReturnOutwards}">
+                                <b><lightning:icon iconName="utility:forward_up" size="small" class="slds-m-horizontal_small" alternativeText="monthlyview" title="Connected" />
+                                    CHEQUE RETURN OUTWARDS [{!count.cheque_return_outwards}]<!-- -->
+                                </b>
+                            </div>
+                            <aura:if isTrue="{!v.showChequeReturnOutwards}">
+                                <div class="slds-m-around_x-large">
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered ">
+                                        <thead>
+                                            <tr class="slds-line-height_reset">
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="DATE">DATE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="HONOURED DATE">HONOURED DATE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="TYPE">TYPE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="AMOUNT">AMOUNT</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="BALANCE">BALANCE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="PARTICULAR">PARTICULAR</div>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <aura:iteration items="{!statments.cheque_return_outwards}" var="chequeReturnOutwards">
+                                                <tr class="slds-hint-parent">
+                                                    <td>{!chequeReturnOutwards.date}</td>
+                                                    <td>{!chequeReturnOutwards.honoured_date}</td>
+                                                    <td>{!chequeReturnOutwards.type}</td>
+                                                    <td>{!chequeReturnOutwards.amount}</td>
+                                                    <td>{!chequeReturnOutwards.balance}</td>
+                                                    <td  class="truncate" text="justify">{!chequeReturnOutwards.particular}</td>
+                                                </tr>
+                                            </aura:iteration>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </aura:if>
+                            
+                            <div class="slds-border_bottom slds-border_top slds-p-around_x-small" onclick="{!c.ChargesProbableReturns}">
+                                <b><lightning:icon iconName="utility:layers" size="small" class="slds-m-horizontal_small" alternativeText="monthlyview" title="Connected" />
+                                    CHARGES / PROBABLE RETURNS [{!count.charges_or_probable_returns}]</b><!-- -->
+                            </div>
+                            <aura:if isTrue="{!v.showChargesProbableReturns}">
+                                <div class="slds-m-around_x-large">
+                                    <div class="slds-grid slds-wrap">
+                                        <div class="slds-col slds-size_6-of-12 slds-p-right_x-small">
+                                            <b>&nbsp;CRITICAL CHARGES/PROBABLE RETURNS BOARD</b>
+                                            <table class="slds-table slds-table_cell-buffer slds-table_bordered ">
+                                                <thead>
+                                                    <tr class="slds-line-height_reset">
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="DATE">DATE</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="HONOURED DATE">HONOURED<br/> DATE</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="TYPE">TYPE</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="AMOUNT">AMOUNT</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="BALANCE">BALANCE</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="PARTICULAR">PARTICULAR</div>
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <aura:iteration items="{!statments.charges_or_probable_returns}" var="chargesProbableReturns">
+                                                        <tr class="slds-hint-parent">
+                                                            <td>{!chargesProbableReturns.date}</td>
+                                                            <td>{!chargesProbableReturns.honoured_date}</td>
+                                                            <td>{!chargesProbableReturns.type}</td>
+                                                            <td>{!chargesProbableReturns.amount}</td>
+                                                            <td>{!chargesProbableReturns.balance}</td>
+                                                            <td class="truncate" text="justify">{!chargesProbableReturns.particular}</td>
+                                                        </tr>
+                                                    </aura:iteration>
+                                                </tbody>
+                                            </table>
+                                        </div>                  
+                                        
+                                        <div class="slds-col slds-size_6-of-12 ">
+                                            <b>&nbsp;NON CRITICAL CHARGES/PROBABLE RETURNS BOARD</b>
+                                            <table class="slds-table slds-table_cell-buffer slds-table_bordered ">
+                                                <thead>
+                                                    <tr class="slds-line-height_reset">
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="DATE">DATE</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="HONOURED DATE">HONOURED<br/> DATE</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="TYPE">TYPE</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="AMOUNT">AMOUNT</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="BALANCE">BALANCE</div>
+                                                        </th>
+                                                        <th class="" scope="col">
+                                                            <div class="slds-truncate" title="PARTICULAR">PARTICULAR</div>
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <aura:iteration items="{!statments.charges_or_probable_returns}" var="chargesProbableReturns">
+                                                        <tr class="slds-hint-parent">
+                                                             <td>{!chargesProbableReturns.date}</td>
+                                                            <td>{!chargesProbableReturns.honoured_date}</td>
+                                                            <td>{!chargesProbableReturns.type}</td>
+                                                            <td>{!chargesProbableReturns.amount}</td>
+                                                            <td>{!chargesProbableReturns.balance}</td>
+                                                            <td class="truncate" text="justify">{!chargesProbableReturns.particular}</td>
+                                                        </tr>
+                                                    </aura:iteration>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </aura:if>
+                            
+                            <div class="slds-border_bottom slds-border_top slds-p-around_x-small" onclick="{!c.TopCreditTransaction}">
+                                <b><lightning:icon iconName="utility:chevrondown" size="small" class="slds-m-horizontal_small" alternativeText="monthlyview" title="Connected" />
+                                    TOP CREDIT TRANSACTION [{!count.top_credit_transactions}]</b><!-- -->
+                            </div>
+                            <aura:if isTrue="{!v.showTopCreditTransaction}">
+                                <div class="slds-m-around_x-large">
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered ">
+                                        <thead>
+                                            <tr class="slds-line-height_reset">
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="DATE">DATE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="AMOUNT">AMOUNT</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="BALANCE">BALANCE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="COUNTER PARTY	">COUNTER PARTY	</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="PARTICULARS">PARTICULARS</div>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <aura:iteration items="{!statments.top_credit_transactions}" var="topCreditTransactions">
+                                                <tr class="slds-hint-parent">
+                                                    <td>{!topCreditTransactions.date}</td>
+                                                    <td>{!topCreditTransactions.amount}</td>
+                                                    <td>{!topCreditTransactions.balance}</td>
+                                                    <td class="truncate" text="justify">{!topCreditTransactions.counterparty}</td>
+                                                    <td class="truncate" text="justify">{!topCreditTransactions.particular}</td>
+                                                </tr>
+                                            </aura:iteration>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </aura:if>
+                            
+                            <div class="slds-border_bottom slds-border_top slds-p-around_x-small" onclick="{!c.TopDebitTransaction}">
+                                <b><lightning:icon iconName="utility:chevronup" size="small" class="slds-m-horizontal_small" alternativeText="monthlyview" title="Connected" />
+                                    TOP DEBIT TRANSACTION [{!count.top_debit_transactions}]</b><!-- -->
+                            </div>
+                            <aura:if isTrue="{!v.showTopDebitTransaction}">
+                                <div class="slds-m-around_x-large">
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered ">
+                                        <thead>
+                                            <tr class="slds-line-height_reset">
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="DATE">DATE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="AMOUNT">AMOUNT</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="BALANCE">BALANCE</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="COUNTER PARTY	">COUNTER PARTY	</div>
+                                                </th>
+                                                <th class="" scope="col">
+                                                    <div class="slds-truncate" title="PARTICULARS">PARTICULARS</div>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <aura:iteration items="{!statments.top_debit_transactions}" var="topDebitTransactions">
+                                                <tr class="slds-hint-parent">
+                                                    <td>{!topDebitTransactions.date}</td>
+                                                    <td>{!topDebitTransactions.amount}</td>
+                                                    <td>{!topDebitTransactions.balance}</td>
+                                                    <td class="truncate" text="justify">{!topDebitTransactions.counterparty}</td>
+                                                    <td class="truncate" text="justify">{!topDebitTransactions.particular}</td>
+                                                </tr>
+                                            </aura:iteration>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </aura:if>
+                        </div>
+                    </aura:if>
+                    
+                    <aura:if isTrue="{!v.transactionalView}">
+                        <div>
+                            <div class="slds-grid slds-wrap">
+                                <div class="slds-col slds-size_3-of-12 slds-p-right_x-large">
+                                    <lightning:input name="input3" placeholder="PARTICULARS/COUNTERTY"/>
+                                </div>
+                                <div class="slds-col slds-size_3-of-12 slds-p-right_x-large">  
+                                    <lightning:input type="number" name="input3" placeholder="AMOUNT FROM"/>
+                                </div>
+                                <div class="slds-col slds-size_3-of-12 ">  
+                                    <lightning:input type="number" name="input3"  placeholder="AMOUNT TO"/>
+                                </div>
+                                <div class="slds-col slds-size_3-of-12 slds-p-left_x-large">   
+                                    <lightning:select aura:id="field"  name="flavor" >
+                                        <option value="">--Select Tag(s)--</option>
+                                        <option value="vanilla">Vanilla</option>
+                                        <option value="chocolate">Chocolate</option>
+                                        <option value="strawberry">Strawberry</option>
+                                    </lightning:select>
+                                </div>    
+                                
+                                <div class="slds-col slds-size_3-of-12 slds-p-right_x-large"> 
+                                    <lightning:input type="date" name="input4" placeholder="FROM"/>
+                                </div>
+                                <div class="slds-col slds-size_3-of-12 slds-p-right_x-large"> 
+                                    <lightning:input type="date" name="input4" placeholder="TO"/>
+                                </div>
+                                <div class="slds-col slds-size_1-of-12"> 
+                                    <lightning:input type="checkbox" label="DB" name="input1"/>
+                                </div>
+                                <div class="slds-col slds-size_1-of-12"> 
+                                    <lightning:input type="checkbox" label="CR" name="input1"/>
+                                </div>
+                                <div class="slds-col slds-size_2-of-12"> 
+                                    <lightning:input type="checkbox" label="DB/CR (x)5000" name="input1"/>
+                                </div>
+                                <div class="slds-col slds-size_2-of-12 slds-p-left_x-large"> 
+                                    <lightning:button variant="brand" label="APPLY" title="APPLY" onclick="{! c.handleClick }" />
+                                </div>
+                            </div>
+                            <br/><br/>
+                            <div >
+                                <table class="slds-table slds-table_cell-buffer slds-table_bordered ">
+                                    <!--  <div class="slds-grid slds-wrap">-->
+                                    <thead>
+                                        <tr class="slds-line-height_reset">
+                                            <th>           
+                                                <label class="slds-checkbox">
+                                                    <ui:inputCheckbox value="{!v.isSelectAll}" change="{!c.handleSelectAllContact}" aura:id="selectAll"/>
+                                                    <span class="slds-checkbox--faux" />
+                                                    <span class="slds-form-element__label"></span>
+                                                </label>
+                                            </th>
+                                            <th class="slds-truncate_container_10" scope="col">
+                                                <div class="slds-truncate" title="TRANSACTION DATE">TRANSACTION <br/>DATE</div>
+                                            </th>
+                                            <th class="" scope="col">
+                                                <div class="slds-truncate" title="PARTICULARS">PARTICULARS</div>
+                                            </th>
+                                            <th class="" scope="col">
+                                                <div class="slds-truncate" title="COUNTER PARTY">COUNTER <br/>PARTY</div>
+                                            </th>
+                                            <th class="" scope="col">
+                                                <div class="slds-truncate" title="VERIFIED COUNTER PARTY">VERIFIED <br/>COUNTER PARTY</div>
+                                            </th>
+                                            <th class="" scope="col">
+                                                <div class="slds-truncate" title="DEBIT">DEBIT</div>
+                                            </th>
+                                            <th class="" scope="col">
+                                                <div class="slds-truncate" title="CREDIT">CREDIT</div>
+                                            </th>
+                                            <th class="" scope="col">
+                                                <div class="slds-truncate" title="BALANCE">BALANCE</div>
+                                            </th>
+                                            <th class="" scope="col">
+                                                <div class="slds-truncate" title="SYSTEM GENERATED TAGS">SYSTEM <br/>GENERATED TAGS</div>
+                                            </th>
+                                            <th class="" scope="col">
+                                                <div class="slds-truncate" title="MODIFIED TAGS">MODIFIED <br/>TAGS</div>
+                                            </th>
+                                            <th class="" scope="col">
+                                                <div class="slds-truncate" title="GAP">GAP</div>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <aura:iteration items="{!statments.all_transactions}" var="transactions">
+                                            <tr class="slds-hint-parent">
+                                                <!--  <div class="slds-col slds-size_1-of-12">-->
+                                                <td>
+                                                    <label class="slds-checkbox">
+                                                        <ui:inputCheckbox aura:id="checkContact" value="" text=""/>
+                                                        <span class="slds-checkbox--faux" />
+                                                        <span class="slds-form-element__label"></span>
+                                                    </label>
+                                                </td>
+                                                <!--   </div>
+                                                <div class="slds-col slds-size_1-of-12">-->
+                                                <td>{!transactions.date}</td>
+                                                <!--  </div>
+                                                <div class="slds-col slds-size_2-of-12"> style="width: 2rem;"-->
+                                                <td class="truncate" text="justify">{!transactions.particular} </td>
+                                                <!--  </div>
+                                                <div class="slds-col slds-size_1-of-12">-->
+                                                <td class="truncate" text="justify">{!transactions.counterparty}</td>
+                                                <!--   </div>
+                                                <div class="slds-col slds-size_1-of-12">-->
+                                                <td class="truncate" text="justify">{!transactions.verified_counterparty}</td>
+                                                <!--   </div>
+                                                <div class="slds-col slds-size_1-of-12">-->
+                                                <td>{!transactions.debit}</td>  
+                                                <!--   </div>
+                                                <div class="slds-col slds-size_1-of-12">-->
+                                                <td>{!transactions.credit}</td>  
+                                                <!--  </div>
+                                                <div class="slds-col slds-size_1-of-12">-->
+                                                <td>{!transactions.balance}</td>
+                                                <!--   </div>
+                                                <div class="slds-col slds-size_1-of-12">-->
+                                                <td class="truncate" text="justify">{!transactions.system_generated_tags}</td>
+                                                <!--  </div>
+                                                <div class="slds-col slds-size_1-of-12">-->
+                                                <td>{!transactions.modified_tags}</td>
+                                                <!--  </div>
+                                                <div class="slds-col slds-size_1-of-12">-->
+                                                <td>{!transactions.gap}</td>
+                                                <!--    </div>-->
+                                                
+                                            </tr>
+                                        </aura:iteration>
+                                    </tbody>
+                                    <!--   </div>-->
+                                </table>
+                            </div>
+                        </div>
+                    </aura:if>
+                    
+                    <aura:if isTrue="{!v.preports}">
+                        <div style="box-shadow: 5px 5px 10px #888888;">
+                           <div class="slds-card">
+                                <br/>
+                                <center><h1 class="slds-page-header__title slds-truncate slds-align-middle">
+                                    <b>Closing Balance Distribution</b></h1></center>
+                                <br/>
+                                <ltng:require scripts="{!$Resource.Chart_library}" afterScriptsLoaded="{!c.generatepieChart}"/>
+                                <div class="slds-size--1-of-1">
+                                    <div class="slds-box slds-box--x-small slds-m-around--x-small">
+                                        <div class="slds-m-around_xx-large">
+                                            <canvas aura:id="piechart"></canvas></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </aura:if>
+                    
+                    <aura:if isTrue="{!v.alert}">
+                        <div ><br/>
+                            <h1><b>ALERT</b></h1><br/>
+                            <div style="width:100%; height:2px; background:#6f7277;"></div>
+                            <aura:iteration items="{!statments.alerts}" var="alert"> 
+                                {!alert}<br/>
+                            </aura:iteration>
+                        </div>
+                    </aura:if>
+                    
+                    <aura:if isTrue="{!v.saveChengess}">
+                        <div style="box-shadow: 5px 5px 10px #888888;">
+                        </div>
+                    </aura:if>
+                    
+                </aura:iteration>
+            </aura:iteration>
+        </aura:if>
+    </div>
+    
+</aura:component>
